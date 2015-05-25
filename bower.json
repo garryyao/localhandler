@@ -1,0 +1,27 @@
+{
+  "name": "localhandler",
+  "version": "0.0.1",
+  "description": "HTTP server that resolves local html files that use Englishtown handler syntax for blurbs, CCLs, medias and CMS",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "englishtown",
+    "dev-server",
+    "local"
+  ],
+  "author": "yaojun85@gmail.com",
+  "license": "ISC",
+  "dependencies": {
+    "troopjs-data": "garryyao/troopjs-data#develop",
+    "troopjs-core": "garryyao/troopjs-core#develop",
+    "troopjs-log": "garryyao/troopjs-log#develop",
+    "troopjs-contrib-browser": "garryyao/troopjs-contrib-browser#develop",
+    "troopjs-ef": "ssh://git@stash.englishtown.com:7999/share/troopjs-ef.git#team/virus/develop"
+  },
+  "resolutions": {
+    "troopjs-log": "develop",
+    "troopjs-core": "develop",
+    "troopjs-compose": "~3"
+  }
+}
