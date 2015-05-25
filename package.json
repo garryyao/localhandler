@@ -16,6 +16,7 @@
   "dependencies": {
     "async-replace": "^1.0.0",
     "colors": "^1.1.0",
+    "commander": "^2.8.1",
     "express": "^4.12.4",
     "parse-domain": "^0.1.2",
     "request": "^2.55.0",
@@ -23,8 +24,5 @@
     "url": "^0.10.3",
     "walk": "^2.3.9",
     "when": "^3.7.3"
-  },
-  "devDependencies": {
-    "commander": "^2.8.1"
   }
 }
