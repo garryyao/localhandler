@@ -39,8 +39,8 @@ cli.version(pkg.version)
   'the Umbraco local directory where the CMS query is resolved by each content key as a file, default to the current directory'
 )
   .option(
-  '-b, --basepath <basepath>',
-  'Base path of the application where URLs resolves to the working directory'
+  '-p, --port [port]',
+  'a custom port that the HTTP server will listen on'
 )
   .option(
   '-p, --processor [processor]',
@@ -264,7 +264,7 @@ when.all([
   app.set('trust proxy', true);   // express running behind a proxy
   app.set('view engine', 'html'); // register the template engine
 
-  var server = app.listen(3000, function() {
+  var server = app.listen(cli.port || 3000, function() {
     var localhost = require('os').hostname();
     var port = server.address().port;
     console.log('localhandler is running on port:%s', port);
