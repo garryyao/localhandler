@@ -43,7 +43,11 @@ cli.version(pkg.version)
   'a custom port that the HTTP server will listen on'
 )
   .option(
-  '-p, --processor [processor]',
+  '-b, --basepath [basepath]',
+  'Base path of the application where URLs resolves to the working directory, default to the current directory'
+)
+  .option(
+  '-f, --processor [processor]',
   'specify a module that exports a custom html processor function'
 )
   .parse(process.argv);
@@ -235,7 +239,7 @@ when.all([
   }
 
   // mount the base path
-  app.use('/'+cli.basepath, router);
+  app.use('/' + (cli.basepath || ''), router);
 
   // handlers comes first.
   router.get('/*.html', function (req, res) {
