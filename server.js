@@ -35,8 +35,8 @@ var fs = nodefn.liftAll(require('fs'), function(promisedFs, liftedFunc, name) {
 cli.version(pkg.version)
   .description(pkg.description)
   .option(
-  '-c, --umbraco <cms>',
-  'the Umbraco local directory where the CMS query is resolved by each content key as a file'
+  '-c, --umbraco [cms]',
+  'the Umbraco local directory where the CMS query is resolved by each content key as a file, default to the current directory'
 )
   .option(
   '-b, --basepath <basepath>',
@@ -171,9 +171,12 @@ function working(msg) {
 var CMS_DIR = cli.umbraco;
 
 var indexCMSFiles = _.once(function buildCMSFileIndex() {
-  var df = when.defer();
   var map = {};
-// go through the list of local git CMS files for publishing.
+  if(!CMS_DIR)
+    return map;
+
+  var df = when.defer();
+  // go through the list of local git CMS files for publishing.
   walk(CMS_DIR, {followLinks: false}).on('file',
     function(dir, file, next) {
       var key = path.basename(file.name, path.extname(file.name)).toLowerCase();
@@ -193,10 +196,16 @@ when.all([
     return fs.readFile(path, 'utf8').then(function (val) {
       return processor? processor(val) : val;
     }).then(function(content) {
-      return replace(content, CMS_REGEX, function(match, val) {
+      return replace(content, CMS_REGEX, function(match, cmsKey) {
         var done = liftLast(arguments);
-        var local_cms_file = cmsMap[val.toLowerCase()];
-        done(render(local_cms_file, options));
+        var cms_file = cmsMap[cmsKey.toLowerCase()];
+        if (cms_file) {
+          done(render(cms_file, options));
+        } else {
+          done(query('cms!' + cmsKey).spread(function (res) {
+            return res.content;
+          }));
+        }
       });
     }).then(function(content) {
       return replace(content, CCL_REGEX, function(match, g1, g2) {
