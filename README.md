@@ -65,3 +65,27 @@ that are required to integrate the localhandler server to setup a sample English
     ProxyPassReverseCookieDomain schooluat.englishtown.com schooluat.englishtown.local
 </VirtualHost> 
 ```
+
+```
+# Sample Reverse Proxy for the UAT server environment on Nginx
+http {
+    server {
+        listen 80;
+        server_name schooluat.dev schooluat.englishtown.local;
+        root /Users/garry/Stash/labs-school/school-ui;
+        add_header Cache-Control "public, max-age=0";
+
+        proxy_set_header Host $proxy_host;
+        proxy_cookie_domain $proxy_host $host;
+
+        location ~* \.html$ {
+            proxy_pass http://127.0.0.1:3000;
+        }
+
+        location / {
+            resolver 10.128.34.91 10.128.34.94;
+            proxy_pass http://schooluxuat.englishtown.com;
+        }
+    }
+}
+```
