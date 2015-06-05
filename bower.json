@@ -16,8 +16,7 @@
     "troopjs-data": "garryyao/troopjs-data#develop",
     "troopjs-core": "garryyao/troopjs-core#develop",
     "troopjs-log": "garryyao/troopjs-log#develop",
-    "troopjs-contrib-browser": "garryyao/troopjs-contrib-browser#develop",
-    "troopjs-ef": "ssh://git@stash.englishtown.com:7999/share/troopjs-ef.git#team/virus/develop"
+    "troopjs-contrib-browser": "garryyao/troopjs-contrib-browser#develop"
   },
   "resolutions": {
     "troopjs-log": "develop",

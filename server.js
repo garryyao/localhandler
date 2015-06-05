@@ -95,17 +95,13 @@ var bootstrapTroop = _.once(function startTroopApplication(domain) {
   require([
     'troopjs-data/query/service', // Troop query as a service.
     'troopjs-data/cache/component', // Troop data cache component.
-    'troopjs-ef/service/registry',  // registry service
-    'troopjs-ef/service/config'  // eTown query configuration.
   ], function Bootstrap(QueryService,
     Cache,
     Registry,
     ConfigService) {
     var cache = Cache();
     sequence([AjaxService(),
-      QueryService(cache),
-      Registry(),
-      ConfigService(cache)
+      QueryService(cache)
     ].map(function(service) {
         return service.start.bind(service);
       })).then(df.resolve).catch(df.reject);
@@ -154,6 +150,7 @@ var AjaxService = Service.extend({
     d.subdomain = env;
     settings.host = d.toString();
     var queryproxy = url.format(settings);
+    console.log(queryproxy);
     return request.post(queryproxy, {
       headers: { "x-troopjs-request-id": new Date().getTime()},
       form: settings.data
