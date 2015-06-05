@@ -149,9 +149,7 @@ var AjaxService = Service.extend({
     var d = getDomain(settings.host);
     d.subdomain = env;
     settings.host = d.toString();
-    var queryproxy = url.format(settings);
-    console.log(queryproxy);
-    return request.post(queryproxy, {
+    return request.post(url.format(settings), {
       headers: { "x-troopjs-request-id": new Date().getTime()},
       form: settings.data
     }).spread(function(response, body) {
