@@ -13,6 +13,7 @@ var path = require('path');
 var url = require('url');
 var _ = require('lodash');
 var parseDomain = require("parse-domain");
+var config = require('./config');
 require('colors').setTheme({prompt: 'grey', ok: 'green', warn: 'yellow', fail: 'red'});
 
 // promisfy all of the fs methods
@@ -54,17 +55,25 @@ cli.version(pkg.version)
 
 var processor = cli.processor ? require(cli.processor) : null;
 
-var require = require('./config');
-var hub = require('troopjs-core/pubsub/hub');
-function query(the_query) {
-  return hub.publish('query', the_query);
-}
+var require = require('./require');
+var cache = require('mu-data/cache/factory')();
+var queryService = require('mu-data/query/factory')(cache, function queryResolver(q, ok, fail) {
+  // create request config
+  var settings = _.clone(config);
+  var d = getDomain(settings.host);
+  d.subdomain = env;
+  settings.host = d.toString();
+  request.post(url.format(settings), {
+    headers: {"x-troopjs-request-id": new Date().getTime()},
+    form: {"q": q.join("|")}
+  }).spread(function (response, body) {
+    ok(JSON.parse(body));
+  }).otherwise(fail);
+});
 
-/**
- * @type Enum enumeration of dev server environments
- * @oneOf "uat", "qa", "staging"
-  */
-var env;
+
+var query = nodefn.lift(queryService.query);
+
 var app = express();
 var router = express.Router();
 
@@ -84,30 +93,19 @@ var DOMAIN_MAP = {
   'live': 'www'
 };
 
-function determinateDomain(domain) {
-  return (env = DOMAIN_MAP[domain.subdomain] || 'qa');
+/**
+ * @type Enum enumeration of dev server environments
+ * @oneOf "uat", "qa", "staging"
+ */
+var env;
+// determinate which env server to proxy to, by looking at proxy origin of each request
+function setDomain(req) {
+  // domain determination
+  var hds = req.headers;
+  // in case this request comes from a proxy
+  var host = hds['x-forwarded-host'] || hds['x-forwarded-server'] || hds.host;
+  return (env = DOMAIN_MAP[getDomain(host).subdomain] || 'qa');
 }
-
-// bootstrap TroopJS services
-var bootstrapTroop = _.once(function startTroopApplication(domain) {
-  var done = working('Establishing queryproxy for '+ determinateDomain(domain).warn + ' env...');
-  var df = when.defer();
-  require([
-    'troopjs-data/query/service', // Troop query as a service.
-    'troopjs-data/cache/component', // Troop data cache component.
-  ], function Bootstrap(QueryService,
-    Cache,
-    Registry,
-    ConfigService) {
-    var cache = Cache();
-    sequence([AjaxService(),
-      QueryService(cache)
-    ].map(function(service) {
-        return service.start.bind(service);
-      })).then(df.resolve).catch(df.reject);
-  });
-  return df.promise.tap(done);
-});
 
 function liftLast(args) {
   return nodefn.liftCallback(args[args.length - 1]);
@@ -123,47 +121,6 @@ function getDomain(str) {
     return [retval.subdomain, retval.domain, retval.tld].join('.');
   };
   return retval;
-}
-
-var Service = require('troopjs-core/component/service');
-/**
- *  A Troop query transport of request/request.
- */
-var AjaxService = Service.extend({
-  "displayName": "net/ajax/service",
-
-  'sig/start': function() {
-  },
-  /**
-   * The ajax event
-   * @event hub/ajax
-   * @param {Object} settings Ajax settings
-   */
-
-  /**
-   * Make ajax request.
-   * @handler
-   * @inheritdoc #event-hub/ajax
-   */
-  "hub/ajax": function ajax(settings) {
-    var d = getDomain(settings.host);
-    d.subdomain = env;
-    settings.host = d.toString();
-    return request.post(url.format(settings), {
-      headers: { "x-troopjs-request-id": new Date().getTime()},
-      form: settings.data
-    }).spread(function(response, body) {
-      return JSON.parse(body);
-    }).catch(function(er) {
-    });
-  }
-});
-
-function working(msg) {
-  process.stdout.write(msg);
-  return function jobDone() {
-    console.log('[done]'.ok);
-  }
 }
 
 
@@ -242,14 +199,8 @@ when.all([
     // leave alone the mock-up htmls.
     //var origin = req.protocol + '://' + req.hostname;
     var page = req.params[0] + path.extname(req.path);
-
-    // domain determination
-    var hds = req.headers;
-    // in case this request comes from a proxy
-    var host = hds['x-forwarded-host'] || hds['x-forwarded-server'] || hds.host;
-    bootstrapTroop(getDomain(host)).then(function () {
-      res.render(page);
-    });
+    setDomain(req);
+    res.render(page);
   });
 
   app.set('views', './');
@@ -270,5 +221,7 @@ when.all([
     console.log("If you're currently running through Apache mod_proxy, simply add this rule to your <VirtualHost>, to add it as a reverse proxy:".prompt);
     console.log('ProxyPassMatch ^/(.*\.html)$ http://%s:%s/$1'.warn, localhost, port);
   });
+
+  queryService.batchStart(300);
 });
 
