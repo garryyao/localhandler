@@ -5,4 +5,4 @@ if (exec('which bower', SILENT).code) {
 	console.error('This npm package requires Bower, you can fix that by: (sudo) npm i -g bower ');
 }
 
-exit(exec('bower install --allow-root -q -F').code);
+exit(exec('./node_modules/.bin/bower  install' + ' --allow-root -q -F --config.cwd="' + __dirname + '"').code);
