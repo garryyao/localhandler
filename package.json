@@ -1,6 +1,6 @@
 {
   "name": "localhandler",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HTTP server that resolves local html files that use Englishtown handler syntax for blurbs, CCLs, medias and CMS",
   "main": "serv er.js",
   "bin": {
