@@ -36,10 +36,6 @@ var fs = nodefn.liftAll(require('fs'), function(promisedFs, liftedFunc, name) {
 cli.version(pkg.version)
   .description(pkg.description)
   .option(
-  '-c, --umbraco [cms]',
-  'the Umbraco local directory where the CMS query is resolved by each content key as a file, default to the current directory'
-)
-  .option(
   '-p, --port [port]',
   'a custom port that the HTTP server will listen on'
 )
@@ -124,104 +120,82 @@ function getDomain(str) {
 }
 
 
-var CMS_DIR = cli.umbraco;
-
-var indexCMSFiles = _.once(function buildCMSFileIndex() {
-  var map = {};
-  if(!CMS_DIR)
-    return map;
-
-  var df = when.defer();
-  // go through the list of local git CMS files for publishing.
-  walk(CMS_DIR, {followLinks: false}).on('file',
-    function(dir, file, next) {
-      var key = path.basename(file.name, path.extname(file.name)).toLowerCase();
-      map[key] = path.join(CMS_DIR, file.name);
-      next();
-    }).on('end', function() {
-      df.resolve(map);
-    }).on('errors', df.reject);
-  return df.promise;
-});
-
-when.all([
-  indexCMSFiles()
-]).spread(function(cmsMap) {
-
-  function render(path, options) {
-    return fs.readFile(path, 'utf8').then(function (val) {
-      return processor? processor(val) : val;
-    }).then(function(content) {
-      return replace(content, CMS_REGEX, function(match, cmsKey) {
-        var done = liftLast(arguments);
-        var cms_file = cmsMap[cmsKey.toLowerCase()];
-        if (cms_file) {
-          done(render(cms_file, options));
-        } else {
-          done(query('cms!' + cmsKey).spread(function (res) {
-            return res.content;
-          }));
-        }
-      });
-    }).then(function(content) {
-      return replace(content, CCL_REGEX, function(match, g1, g2) {
-        var done = liftLast(arguments);
-        var ccl = g1 || g2;
-        // escape CCL key which contains dot
-        done(query('ccl!"' + ccl + '"').spread(function(res) {
-          return res.value;
+function render(htmlFile, options) {
+  return fs.readFile(htmlFile, 'utf8').then(function (val) {
+    return processor ? processor(val) : val;
+  }).then(function (content) {
+    return replace(content, CMS_REGEX, function (match, cmsKey) {
+      var done = liftLast(arguments);
+      /* Try looking up a local html file in the same directory as with the html file, with .html suffix */
+      var local_cms_file = path.resolve(path.dirname(htmlFile), cmsKey + '.html');
+      var stat = fs.lstatSync(local_cms_file)
+      if (stat.isFile) {
+        done(render(local_cms_file, options));
+      } else {
+        done(query('cms!' + cmsKey).spread(function (res) {
+          return res.content;
         }));
-      });
-    }).then(function(content) {
-      return replace(content, BLURB_REGEX, function(match, blurbId) {
-        var done = liftLast(arguments);
-        done(query('blurb!' + blurbId).spread(function(res) {
-          return res.translation;
-        }));
-      });
-    }).then(function(content) {
-      return replace(content, MEDIA_REGEXP, function(match, mediaId) {
-        var done = liftLast(arguments);
-        done(query('media!' + mediaId).spread(function(res) {
-          // drop off the origin, to align with handler syntax.
-          return url.parse(res.url).path;
-        }));
-      });
+      }
     });
-  }
-
-  // mount the base path
-  app.use('/' + (cli.basepath || ''), router);
-
-  // handlers comes first.
-  router.get('/*.html', function (req, res) {
-
-    // leave alone the mock-up htmls.
-    //var origin = req.protocol + '://' + req.hostname;
-    var page = req.params[0] + path.extname(req.path);
-    setDomain(req);
-    res.render(page);
+  }).then(function (content) {
+    return replace(content, CCL_REGEX, function (match, g1, g2) {
+      var done = liftLast(arguments);
+      var ccl = g1 || g2;
+      // escape CCL key which contains dot
+      done(query('ccl!"' + ccl + '"').spread(function (res) {
+        return res.value;
+      }));
+    });
+  }).then(function (content) {
+    return replace(content, BLURB_REGEX, function (match, blurbId) {
+      var done = liftLast(arguments);
+      done(query('blurb!' + blurbId).spread(function (res) {
+        return res.translation;
+      }));
+    });
+  }).then(function (content) {
+    return replace(content, MEDIA_REGEXP, function (match, mediaId) {
+      var done = liftLast(arguments);
+      done(query('media!' + mediaId).spread(function (res) {
+        // drop off the origin, to align with handler syntax.
+        return url.parse(res.url).path;
+      }));
+    });
   });
+}
 
-  app.set('views', './');
+// mount the base path
+app.use('/' + (cli.basepath || ''), router);
 
-  // change HTML template engine to Englishtown macros handler.
-  app.engine('html', function(filePath, options, callback) {
-    var handleRender = nodefn.liftCallback(callback);
-    return handleRender(render(filePath, options));
-  });
+// handlers comes first.
+router.get('/*.html', function (req, res) {
 
-  app.set('trust proxy', true);   // express running behind a proxy
-  app.set('view engine', 'html'); // register the template engine
-
-  var server = app.listen(cli.port || 3000, function() {
-    var localhost = require('os').hostname();
-    var port = server.address().port;
-    console.log('localhandler is running on port:%s', port);
-    console.log("If you're currently running through Apache mod_proxy, simply add this rule to your <VirtualHost>, to add it as a reverse proxy:".prompt);
-    console.log('ProxyPassMatch ^/(.*\.html)$ http://%s:%s/$1'.warn, localhost, port);
-  });
-
-  queryService.batchStart(300);
+  // leave alone the mock-up htmls.
+  //var origin = req.protocol + '://' + req.hostname;
+  var page = req.params[0] + path.extname(req.path);
+  setDomain(req);
+  res.render(page);
 });
+
+app.set('views', './');
+
+// change HTML template engine to Englishtown macros handler.
+app.engine('html', function (filePath, options, callback) {
+  var handleRender = nodefn.liftCallback(callback);
+  return handleRender(render(filePath, options));
+});
+
+app.set('trust proxy', true);   // express running behind a proxy
+app.set('view engine', 'html'); // register the template engine
+
+var server = app.listen(cli.port || 3000, function () {
+  var localhost = require('os').hostname();
+  var port = server.address().port;
+  console.log('localhandler is running on port:%s', port);
+  console.log("If you're currently running through Apache mod_proxy, simply add this rule to your <VirtualHost>, to add it as a reverse proxy:".prompt);
+  console.log('ProxyPassMatch ^/(.*\.html)$ http://%s:%s/$1'.warn, localhost,
+  port);
+});
+
+queryService.batchStart(300);
 

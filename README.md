@@ -23,12 +23,6 @@ localhandler is running on port:3000
 
 This option set the root path of the web application, so local files are resolved relative to this base path. Use this option to make the local handler URL matches with the virtual path configuration of your HTTP server, default to the root path '/'.
 
-### '-c, --umbraco' : local CMS contents directory
-
-This option specifies the path of an local [Umbraco](http://umbraco.englishtown.com/) repository where each file name represents a CMS key, so when an Umbraco key is queried in the HTML (by getContent:the_cms_key) file content of the local file with `the_cms_key` is used without actually querying for Umbraco. Check [umbra](https://github.com/garryyao/umbra) for more details to understand the Umbraco repository concept.
-
-If this option is not specified, all CMS key will be resolved on the server-side.
-
 ### '-f, --processor' : local module implements a custom content processor function  
 
 This option specified a javascript file that export a function, for custom processing as the tip of the HTML processing pipeline, basically transform the file contents that are supposed to be consumed by the next processor, e.g.
